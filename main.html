@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Metronome</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        .metronome {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        #tempo {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        #tempoSlider {
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <div class="metronome">
+        <h1>Simple Metronome</h1>
+        <div id="tempo">Tempo: 120 BPM</div>
+        <input type="range" id="tempoSlider" min="40" max="208" value="120">
+        <br>
+        <button id="startStop">Start</button>
+        <button id="tap">Tap Tempo</button>
+    </div>
+
+    <script>
+        const tempoDisplay = document.getElementById('tempo');
+        const tempoSlider = document.getElementById('tempoSlider');
+        const startStopButton = document.getElementById('startStop');
+        const tapButton = document.getElementById('tap');
+
+        let isPlaying = false;
+        let tempo = 120;
+        let intervalId;
+        let audioContext;
+        let tapTimes = [];
+
+        tempoSlider.addEventListener('input', () => {
+            tempo = parseInt(tempoSlider.value);
+            tempoDisplay.textContent = `Tempo: ${tempo} BPM`;
+            if (isPlaying) {
+                stopMetronome();
+                startMetronome();
+            }
+        });
+
+        startStopButton.addEventListener('click', () => {
+            if (isPlaying) {
+                stopMetronome();
+            } else {
+                startMetronome();
+            }
+        });
+
+        tapButton.addEventListener('click', () => {
+            const now = Date.now();
+            tapTimes.push(now);
+            if (tapTimes.length > 4) {
+                tapTimes.shift();
+            }
+            if (tapTimes.length > 1) {
+                const averageInterval = (tapTimes[tapTimes.length - 1] - tapTimes[0]) / (tapTimes.length - 1);
+                tempo = Math.round(60000 / averageInterval);
+                tempo = Math.max(40, Math.min(208, tempo));
+                tempoSlider.value = tempo;
+                tempoDisplay.textContent = `Tempo: ${tempo} BPM`;
+                if (isPlaying) {
+                    stopMetronome();
+                    startMetronome();
+                }
+            }
+        });
+
+        function startMetronome() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            isPlaying = true;
+            startStopButton.textContent = 'Stop';
+            playClick();
+        }
+
+        function stopMetronome() {
+            isPlaying = false;
+            startStopButton.textContent = 'Start';
+            clearTimeout(intervalId);
+        }
+
+        function playClick() {
+            const oscillator = audioContext.createOscillator();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(1000, audioContext.currentTime);
+
+            const gainNode = audioContext.createGain();
+            gainNode.gain.setValueAtTime(1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.05);
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.05);
+
+            intervalId = setTimeout(playClick, (60 / tempo) * 1000);
+        }
+    </script>
+</body>
+</html>
